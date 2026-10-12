@@ -14,5 +14,21 @@ fn t_ipsw_signed() {
   assert(len(ipsw_signed([])) == 0, "empty in -> empty out")
 }
 
+fn t_ipsw_match() {
+  let devs = [
+    {"identifier": "iPhone10,1", "name": "iPhone 8"},
+    {"identifier": "iPhone14,5", "name": "iPhone 13"},
+    {"identifier": "iPad13,1", "name": "iPad Air (4th generation)"}
+  ]
+  assert(ipsw_match_device(devs, "iphone 8") == "iPhone10,1", "case-insensitive name match")
+  assert(ipsw_match_device(devs, "IPHONE 13") == "iPhone14,5", "upper needle matches")
+  assert(ipsw_match_device(devs, "iphone14") == "iPhone14,5", "identifier substring")
+  assert(ipsw_match_device(devs, "ipad air") == "iPad13,1", "multi-word match")
+  assert(ipsw_match_device(devs, "nokia 3310") == null, "no match -> null")
+  assert(ipsw_match_device(devs, "") == null, "empty needle -> null")
+  assert(ipsw_match_device([], "iphone") == null, "empty list -> null")
+}
+
 t_ipsw_signed()
+t_ipsw_match()
 print "test_ipsw OK"

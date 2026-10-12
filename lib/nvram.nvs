@@ -37,6 +37,10 @@ fn nvram_get(name) {
     m_warn("NVRAM tools are macOS-only.")
     return null
   }
+  if (!is_safe_nvram_name(name)) {
+    m_err("refusing unsafe NVRAM variable name: " + str(name))
+    return null
+  }
   if (!require_tool("nvram")) {
     return null
   }
@@ -59,11 +63,15 @@ fn nvram_set(name, value) {
     m_warn("NVRAM tools are macOS-only.")
     return false
   }
+  if (!is_safe_nvram_name(name)) {
+    m_err("refusing unsafe NVRAM variable name: " + str(name))
+    return false
+  }
   if (!require_tool("nvram")) {
     return false
   }
   m_warn("writing NVRAM variable '" + name + "' (may need sudo / SIP off for protected vars).")
-  let r = sh_ok("nvram " + name + "=\"" + value + "\"")
+  let r = sh_ok("nvram " + name + "=" + shell_quote(value))
   if (r[1]) {
     m_ok("set " + name) } else { m_err("failed: " + r[0])
   }
@@ -74,6 +82,10 @@ fn nvram_set(name, value) {
 fn nvram_delete(name) {
   if (!M_IS_MAC) {
     m_warn("NVRAM tools are macOS-only.")
+    return false
+  }
+  if (!is_safe_nvram_name(name)) {
+    m_err("refusing unsafe NVRAM variable name: " + str(name))
     return false
   }
   if (!require_tool("nvram")) {

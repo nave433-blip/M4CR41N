@@ -83,6 +83,42 @@ fn norm_pid(pid) {
   return lower(p)
 }
 
+// shell_quote(s): wrap a string in single quotes for safe embedding in
+// shell commands — escapes embedded single quotes. Pure.
+fn shell_quote(s) {
+  let out = "'"
+  let i = 0
+  while (i < len(s)) {
+    let c = s[i]
+    if (c == "'") {
+      out = out + "'\\''"
+    } else {
+      out = out + c
+    }
+    i = i + 1
+  }
+  return out + "'"
+}
+
+// is_safe_nvram_name(name): variable names may only contain alphanumerics
+// plus - _ % : — anything else is rejected before touching the shell.
+fn is_safe_nvram_name(name) {
+  if (name == null || trim(name) == "") {
+    return false
+  }
+  let i = 0
+  while (i < len(name)) {
+    let c = name[i]
+    let okc = (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") ||
+              (c >= "0" && c <= "9") || c == "-" || c == "_" || c == "%" || c == ":"
+    if (!okc) {
+      return false
+    }
+    i = i + 1
+  }
+  return true
+}
+
 // ---- output -------------------------------------------------------------
 fn m_info(msg)  { print "[*] " + msg }
 fn m_ok(msg)    { print "[+] " + msg }

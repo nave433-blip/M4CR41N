@@ -5,12 +5,14 @@
 // M4CR41N ships NO exploit code and performs NO bypass of any kind.
 
 // ProductType prefixes with checkm8-vulnerable SoCs (A5-A11).
+// NOTE: prefixes are matched by device family, not chip — every family
+// listed here shipped an A11-or-older bootrom.
 let CHECKM8_PREFIXES = [
-  "iPhone8",   // A11: 8, 8 Plus, X
-  "iPhone9",   // A11: (covered for completeness)
-  "iPhone7",   // A10
-  "iPhone6",   // A8
-  "iPhone5",   // A6/A7
+  "iPhone8",   // A9: 6s / 6s Plus / SE (1st gen)
+  "iPhone9",   // A10: 7 / 7 Plus
+  "iPhone7",   // A8: 6 / 6 Plus
+  "iPhone6",   // A7: 5s
+  "iPhone5",   // A6: 5 / 5c
   "iPad6", "iPad5", "iPad4", "iPad3", "iPad2",
   "iPod7", "iPod5"
 ]

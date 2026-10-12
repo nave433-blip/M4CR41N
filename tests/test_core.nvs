@@ -28,7 +28,28 @@ fn t_parse_nvram() {
   assert(h["prev-lang:kbd"] == "en-US:0", "nvram colon-in-name")
 }
 
+fn t_shell_quote() {
+  assert(shell_quote("abc") == "'abc'", "plain quoted")
+  assert(shell_quote("a'b") == "'a'\\''b'", "single quote escaped")
+  assert(shell_quote("a\"b$c`d") == "'a\"b$c`d'", "double-quote/dollar/backtick safe inside singles")
+  assert(shell_quote("") == "''", "empty quoted")
+}
+
+fn t_safe_nvram_name() {
+  assert(is_safe_nvram_name("boot-args") == true, "boot-args ok")
+  assert(is_safe_nvram_name("prev-lang:kbd") == true, "colon ok")
+  assert(is_safe_nvram_name("SystemAudioVolume%01") == true, "percent ok")
+  assert(is_safe_nvram_name("a; rm -rf /") == false, "semicolon rejected")
+  assert(is_safe_nvram_name("x\"y") == false, "quote rejected")
+  assert(is_safe_nvram_name("a$b") == false, "dollar rejected")
+  assert(is_safe_nvram_name("") == false, "empty rejected")
+  assert(is_safe_nvram_name(null) == false, "null rejected")
+}
+
 t_parse_kv()
 t_detect_os()
 t_tool_hint()
+t_parse_nvram()
+t_shell_quote()
+t_safe_nvram_name()
 print "test_core OK"

@@ -54,14 +54,27 @@ fn ipsw_print_table(firmwares) {
   }
 }
 
-// ipsw_lookup_device(name): fuzzy match a product name -> identifier.
-fn ipsw_lookup_device(name) {
-  let devs = ipsw_devices()
-  let needle = name
+// ipsw_match_device(devs, name): fuzzy match a product name against a
+// device list -> identifier or null. Case-insensitive. Pure, testable.
+fn ipsw_match_device(devs, name) {
+  let needle = lower(trim(name))
+  if (needle == "") {
+    return null
+  }
   for (d in devs) {
-    if (contains(d["name"], needle) || contains(d["identifier"], needle)) {
+    let nm = d["name"]
+    let id = d["identifier"]
+    if (nm == null) { nm = "" }
+    if (id == null) { id = "" }
+    if (contains(lower(nm), needle) || contains(lower(id), needle)) {
       return d["identifier"]
     }
   }
   return null
+}
+
+// ipsw_lookup_device(name): fuzzy match a product name -> identifier.
+fn ipsw_lookup_device(name) {
+  let devs = ipsw_devices()
+  return ipsw_match_device(devs, name)
 }
