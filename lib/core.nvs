@@ -274,6 +274,31 @@ let TOOL_HINTS = {
     "linux": "sudo apt install libimobiledevice-utils",
     "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
   },
+  "nvram": {
+    "darwin": "built into macOS — no install needed",
+    "linux": "macOS-only — NVRAM commands require a Mac host",
+    "windows": "macOS-only — NVRAM commands require a Mac host"
+  },
+  "lsusb": {
+    "darwin": "not needed on macOS (system_profiler is used instead)",
+    "linux": "sudo apt install usbutils",
+    "windows": "not needed on Windows (USB detection is native)"
+  },
+  "csrutil": {
+    "darwin": "built into macOS — no install needed",
+    "linux": "macOS-only — this security check is skipped on other platforms",
+    "windows": "macOS-only — this security check is skipped on other platforms"
+  },
+  "fdesetup": {
+    "darwin": "built into macOS — no install needed",
+    "linux": "macOS-only — this security check is skipped on other platforms",
+    "windows": "macOS-only — this security check is skipped on other platforms"
+  },
+  "spctl": {
+    "darwin": "built into macOS — no install needed",
+    "linux": "macOS-only — this security check is skipped on other platforms",
+    "windows": "macOS-only — this security check is skipped on other platforms"
+  },
   "checkra1n": {
     "darwin": "download from checkra.in (macOS build)",
     "linux":  "download from checkra.in (Linux build)",

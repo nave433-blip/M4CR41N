@@ -10,6 +10,8 @@ let DOCTOR_TOOLS = [
   ["idevicediagnostics", "battery diagnostics (libimobiledevice)"],
   ["idevicebackup2", "backup/restore (libimobiledevice)"],
   ["idevicescreenshot", "screenshots (libimobiledevice)"],
+  ["ideviceinstaller", "app inventory (libimobiledevice)"],
+  ["idevicepair", "pairing status (libimobiledevice)"],
   ["checkra1n", "checkm8 jailbreak (A5-A11)"],
   ["palera1n", "palera1n jailbreak (A8-A11, iOS 15-16)"],
   ["tsschecker", "SHSH blob saver"],
