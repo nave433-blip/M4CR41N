@@ -60,14 +60,9 @@ fn cmd_firmware(a) {
       m_die("usage: m4cr41n firmware " + sub + " <device identifier or name>")
     }
     let ident = a[1]
-    // allow fuzzy product names like "iPhone 8"
-    if (!starts_with(ident, "iPhone") && !starts_with(ident, "iPad") && !starts_with(ident, "iPod") && !starts_with(ident, "AppleTV") && !starts_with(ident, "Watch")) {
-      let found = ipsw_lookup_device(ident)
-      if (found != null) {
-        ident = found
-        m_info("resolved to " + ident)
-      }
-    } else if (index_of(ident, ",") < 0 && index_of(ident, " ") >= 0) {
+    // ProductTypes look like "iPhone10,1" — anything else gets a fuzzy
+    // product-name lookup first ("iPhone 8", "ipad air", ...).
+    if (index_of(ident, ",") < 0) {
       let found = ipsw_lookup_device(ident)
       if (found != null) {
         ident = found
