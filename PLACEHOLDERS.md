@@ -9,7 +9,10 @@
 ## Needs a real Windows machine
 - [ ] `tools/win/nvs.exe` — cross-compiled (GOOS=windows), build verified, but never
       executed on Windows. Run `tests\run_tests.bat` there.
-- [ ] `m4cr41n.bat` / `m4cr41n.ps1` launchers — untested on Windows.
+- [ ] `m4cr41n.bat` / `m4cr41n.ps1` launchers and `install.ps1`/`uninstall.ps1`
+      — all three .ps1 files pass the real PowerShell 7.4 parser (verified
+      2026-10-12); the .bat was hand-reviewed. None have been *executed* on
+      Windows yet — run the installer on a real box.
 - [ ] PowerShell Apple-USB fallback (`usb_apple_devices`) — quoting through
       `cmd /c` is best-effort; verify on a real box.
 - [ ] libimobiledevice Windows build install flow — see docs/WINDOWS.md.
