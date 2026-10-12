@@ -7,7 +7,37 @@ fn t_classify_pid() {
   assert(classify_pid("1281") == "RECOVERY MODE", "1281 -> recovery")
   assert(classify_pid("1280") == "RECOVERY MODE", "1280 -> recovery")
   assert(classify_pid("12a8") == "normal/other (pid 12a8)", "12a8 -> normal")
+  // raw values straight from OS backends must classify too
+  assert(classify_pid("0x1227") == "DFU MODE", "0x1227 (macOS) -> DFU")
+  assert(classify_pid("0X1281") == "RECOVERY MODE", "0X1281 -> recovery")
+  assert(classify_pid("12A8") == "normal/other (pid 12a8)", "12A8 uppercased+normalized")
+}
+
+fn t_norm_pid() {
+  assert(norm_pid("0x1227") == "1227", "strip 0x")
+  assert(norm_pid("0X12A8") == "12a8", "strip 0X + lowercase")
+  assert(norm_pid("1227") == "1227", "plain passthrough")
+  assert(norm_pid("  0x1281  ") == "1281", "trimmed")
+  assert(norm_pid("?") == "?", "unknown marker passthrough")
+}
+
+fn t_dfu_section_for() {
+  assert(dfu_section_for(null) == "modern", "null -> modern default")
+  assert(dfu_section_for("") == "modern", "empty -> modern default")
+  assert(dfu_section_for("iPhone 7") == "ip7", "family name 7")
+  assert(dfu_section_for("iPhone 7 Plus") == "ip7", "family name 7 Plus")
+  assert(dfu_section_for("iPhone9,1") == "ip7", "ProductType 9,x -> 7")
+  assert(dfu_section_for("iPhone9,4") == "ip7", "ProductType 9,4 -> 7 Plus")
+  assert(dfu_section_for("iPhone 6s") == "home", "family name 6s")
+  assert(dfu_section_for("iPhone8,1") == "home", "ProductType 8,1 (6s) -> home")
+  assert(dfu_section_for("iPhone7,2") == "home", "ProductType 7,2 (6) -> home")
+  assert(dfu_section_for("iPhone8,4") == "home", "ProductType 8,4 (SE 1st) -> home")
+  assert(dfu_section_for("iPhone10,1") == "modern", "ProductType 10,1 (8) -> modern")
+  assert(dfu_section_for("iPhone14,5") == "modern", "ProductType 14,5 (13) -> modern")
+  assert(dfu_section_for("iPod touch") == "home", "iPod -> home")
 }
 
 t_classify_pid()
+t_norm_pid()
+t_dfu_section_for()
 print "test_modes OK"

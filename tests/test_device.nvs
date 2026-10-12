@@ -1,6 +1,7 @@
 // M4CR41N tests — device module (pure parts).
 import "../lib/core.nvs"
 import "../lib/device.nvs"
+import "../lib/modes.nvs"
 
 fn t_is_udid() {
   assert(is_udid("000080300000000000000000") == true, "24-hex UDID")
@@ -21,6 +22,22 @@ fn t_ideviceinfo_fixture() {
   assert(h["TimeZone"] == "America/Indiana/Indianapolis", "fixture value with slashes")
 }
 
+fn t_battery_summary() {
+  let sample = "CycleCount: 412\nDesignCapacity: 3200\nFullChargeCapacity: 2871\nBatteryCurrentCapacity: 82\nBatteryIsCharging: false\nSerialNumber: F17XK0ABCDEF\nSomeOtherKey: hello"
+  let hits = battery_summary_lines(sample)
+  assert(len(hits) == 5, "5 battery lines matched, got " + str(len(hits)))
+  assert(hits[0] == "CycleCount: 412", "first hit is CycleCount")
+  assert(len(battery_summary_lines("NoBatteryHere: 1\nFoo: bar")) == 0, "no matches -> empty")
+  assert(len(battery_summary_lines("")) == 0, "empty input -> empty")
+}
+
+fn t_norm_pid_device() {
+  // end-to-end: macOS-style raw PID normalizes before classification
+  assert(classify_pid(norm_pid("0x1227")) == "DFU MODE", "macOS DFU pid path")
+}
+
 t_is_udid()
 t_ideviceinfo_fixture()
+t_battery_summary()
+t_norm_pid_device()
 print "test_device OK"

@@ -73,6 +73,16 @@ fn sh_ok(cmd) {
   return [trim(out), true]
 }
 
+// norm_pid(pid): normalize a USB product ID for comparison — strip a
+// leading "0x" (macOS system_profiler format) and lowercase. Pure.
+fn norm_pid(pid) {
+  let p = trim(pid)
+  if (starts_with(p, "0x") || starts_with(p, "0X")) {
+    p = p[2:len(p)]
+  }
+  return lower(p)
+}
+
 // ---- output -------------------------------------------------------------
 fn m_info(msg)  { print "[*] " + msg }
 fn m_ok(msg)    { print "[+] " + msg }
@@ -150,6 +160,11 @@ let TOOL_HINTS = {
   "idevicebackup2": {
     "darwin": "brew install libimobiledevice",
     "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "idevicescreenshot": {
+    "darwin": "brew install libimobiledevice",
+    "linux": "sudo apt install libimobiledevice-utils",
     "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
   },
   "checkra1n": {

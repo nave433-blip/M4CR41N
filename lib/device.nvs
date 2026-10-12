@@ -71,7 +71,9 @@ fn usb_apple_devices() {
         cur = {"bus": "usb", "device": "?", "pid": "?", "desc": "Apple device"}
       }
       if (cur != null && starts_with(t, "Product ID:")) {
-        cur["pid"] = trim(split(t, ":")[1])
+        // system_profiler prints "Product ID: 0x1227" — normalize to "1227"
+        // so it matches classify_pid()'s expectations.
+        cur["pid"] = norm_pid(trim(split(t, ":")[1]))
       }
       if (cur != null && starts_with(t, "Location ID:")) {
         push(found, cur)
@@ -90,7 +92,7 @@ fn usb_apple_devices() {
         let pid = "?"
         let i = index_of(t, "05ac:")
         if (i >= 0) {
-          pid = trim(t[i+5:i+9])
+          pid = norm_pid(trim(t[i+5:i+9]))
         }
         push(found, {"bus": "usb", "device": "?", "pid": pid, "desc": t})
       }
@@ -108,7 +110,7 @@ fn usb_apple_devices() {
       let pid = "?"
       let i = index_of(parts[0], "PID_")
       if (i >= 0) {
-        pid = parts[0][i+4:i+8]
+        pid = norm_pid(parts[0][i+4:i+8])
       }
       let desc = parts[0]
       if (len(parts) > 1) {
@@ -169,6 +171,30 @@ fn device_dashboard(udid) {
   return true
 }
 
+// battery_summary_lines(out): pull battery-relevant lines out of raw
+// `idevicediagnostics diagnostics` output. Pure — takes the raw text,
+// returns [line, ...]. Empty when nothing battery-like is present.
+fn battery_summary_lines(out) {
+  let keys = ["CycleCount", "DesignCapacity", "FullChargeCapacity",
+              "BatteryCurrentCapacity", "BatteryIsCharging",
+              "AppleRawCurrentCapacity", "AppleRawMaxCapacity",
+              "Voltage", "Amperage", "Temperature"]
+  let hits = []
+  for (line in split(out, "\n")) {
+    let t = trim(line)
+    if (t == "") {
+      continue
+    }
+    for (k in keys) {
+      if (contains(t, k)) {
+        push(hits, t)
+        break
+      }
+    }
+  }
+  return hits
+}
+
 // battery_health(udid): battery info via idevicediagnostics.
 fn battery_health(udid) {
   if (!require_tool("idevicediagnostics")) {
@@ -183,6 +209,13 @@ fn battery_health(udid) {
     m_warn("no diagnostics output (device locked or unsupported).")
     return false
   }
+  let hits = battery_summary_lines(out)
+  if (len(hits) > 0) {
+    print "== battery summary =="
+    for (h in hits) { print "  " + h }
+    return true
+  }
+  m_info("no battery keys found — raw diagnostics follow:")
   // print at most 60 lines (portable — no `head` dependency)
   let lines = split(out, "\n")
   let n = len(lines)

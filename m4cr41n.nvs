@@ -25,7 +25,7 @@ fn usage() {
   print "  recovery enter [udid]   reboot device into recovery mode"
   print "  recovery exit           reboot device out of recovery mode"
   print "  dfu detect              find devices in DFU / recovery via USB"
-  print "  dfu guide               button-combo steps to enter DFU"
+  print "  dfu guide [model]       button-combo steps to enter DFU (auto-detects device)"
   print "  nvram dump              dump all NVRAM variables (macOS)"
   print "  nvram get <name>        read one NVRAM variable (macOS)"
   print "  nvram set <name> <val>  write one NVRAM variable (macOS, careful)"
@@ -173,14 +173,27 @@ fn main() {
   }
   else if (cmd == "dfu") {
     if (len(rest) == 0) {
-      m_die("usage: m4cr41n dfu detect|guide")
+      m_die("usage: m4cr41n dfu detect|guide [model]")
     }
     if (rest[0] == "detect") {
       dfu_detect()
     }
-    else if (rest[0] == "guide") { dfu_guide(null) }
+    else if (rest[0] == "guide") {
+      let m = len(rest) > 1 ? rest[1] : ""
+      if (m == "") {
+        // auto-detect the model from a connected device when possible
+        let ids = device_udids()
+        if (len(ids) > 0) {
+          let info = device_info(ids[0])
+          if (info["ProductType"] != null) {
+            m = info["ProductType"]
+          }
+        }
+      }
+      dfu_guide(m)
+    }
     else {
-      m_die("usage: m4cr41n dfu detect|guide")
+      m_die("usage: m4cr41n dfu detect|guide [model]")
     }
   }
   else if (cmd == "nvram") { cmd_nvram(rest) }

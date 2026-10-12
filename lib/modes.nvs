@@ -8,14 +8,84 @@ let DFU_PIDS = ["1227"]                    // 05ac:1227 DFU mode
 let RECOVERY_PIDS = ["1281", "1280"]       // 05ac:1281/1280 recovery mode
 
 // classify_pid(pid): USB product-ID -> mode label (pure, testable).
+// Input is normalized (strips "0x", lowercases) so raw values from any
+// OS backend classify correctly.
 fn classify_pid(pid) {
-  if (pid == "1227") {
+  let p = norm_pid(pid)
+  if (p == "1227") {
     return "DFU MODE"
   }
-  if (pid == "1281" || pid == "1280") {
+  if (p == "1281" || p == "1280") {
     return "RECOVERY MODE"
   }
-  return "normal/other (pid " + pid + ")"
+  return "normal/other (pid " + p + ")"
+}
+
+// dfu_section_for(model): which DFU guide section fits the device.
+// model may be a family name ("iPhone 7") or a ProductType ("iPhone10,1").
+// Returns "modern" (8+/Face ID iPad), "ip7" (7/7 Plus), or "home"
+// (6s and earlier / home-button iPads). Pure, testable.
+fn dfu_section_for(model) {
+  let m = ""
+  if (model != null) {
+    m = lower(trim(model))
+  }
+  if (m == "") {
+    return "modern"
+  }
+  if (contains(m, "iphone 7")) {
+    return "ip7"
+  }
+  if (contains(m, "iphone 6") || contains(m, "iphone 5") || contains(m, "ipod")) {
+    return "home"
+  }
+  // ProductType form: "iPhone<major>,<minor>" — 9,x is the 7 family,
+  // 8,x and below are home-button devices.
+  let i = index_of(m, "iphone")
+  if (i >= 0) {
+    let j = i + 6
+    let num = ""
+    while (j < len(m) && m[j] >= "0" && m[j] <= "9") {
+      num = num + m[j]
+      j = j + 1
+    }
+    if (num != "") {
+      let major = int(num)
+      if (major == 9) {
+        return "ip7"
+      }
+      if (major <= 8) {
+        return "home"
+      }
+      return "modern"
+    }
+  }
+  return "modern"
+}
+
+fn dfu_sec_modern() {
+  print "iPhone 8 and later / iPad with Face ID:"
+  print "  1. Connect to computer, open " + (M_IS_MAC ? "Finder" : "iTunes/Finder") + "."
+  print "  2. Press Volume Up, release. Press Volume Down, release."
+  print "  3. Hold Side button 10 seconds until screen goes black."
+  print "  4. Hold Side + Volume Down 5 seconds, release Side, keep"
+  print "     holding Volume Down 10 more seconds. Screen stays BLACK"
+  print "     (Apple logo = recovery mode, start over)."
+  print ""
+}
+
+fn dfu_sec_ip7() {
+  print "iPhone 7 / 7 Plus:"
+  print "  1. Hold Side + Volume Down 8 seconds, release Side,"
+  print "     keep holding Volume Down until computer detects DFU."
+  print ""
+}
+
+fn dfu_sec_home() {
+  print "iPhone 6s and earlier / iPad with Home button:"
+  print "  1. Hold Home + Sleep/Wake 8 seconds, release Sleep/Wake,"
+  print "     keep holding Home until computer detects DFU."
+  print ""
 }
 
 fn dfu_detect() {
@@ -34,26 +104,28 @@ fn dfu_detect() {
 }
 
 // dfu_guide(model): print button-combo steps for entering DFU.
+// model is optional — when given, its section prints first.
 fn dfu_guide(model) {
   print ""
   print "== Entering DFU mode (hardware button combo — no software shortcut) =="
+  if (model != null && trim(model) != "") {
+    print "device: " + trim(model)
+  }
   print ""
-  print "iPhone 8 and later / iPad with Face ID:"
-  print "  1. Connect to computer, open " + (M_IS_MAC ? "Finder" : "iTunes/Finder") + "."
-  print "  2. Press Volume Up, release. Press Volume Down, release."
-  print "  3. Hold Side button 10 seconds until screen goes black."
-  print "  4. Hold Side + Volume Down 5 seconds, release Side, keep"
-  print "     holding Volume Down 10 more seconds. Screen stays BLACK"
-  print "     (Apple logo = recovery mode, start over)."
-  print ""
-  print "iPhone 7 / 7 Plus:"
-  print "  1. Hold Side + Volume Down 8 seconds, release Side,"
-  print "     keep holding Volume Down until computer detects DFU."
-  print ""
-  print "iPhone 6s and earlier / iPad with Home button:"
-  print "  1. Hold Home + Sleep/Wake 8 seconds, release Sleep/Wake,"
-  print "     keep holding Home until computer detects DFU."
-  print ""
+  let first = dfu_section_for(model)
+  if (first == "ip7") {
+    dfu_sec_ip7()
+    dfu_sec_modern()
+    dfu_sec_home()
+  } else if (first == "home") {
+    dfu_sec_home()
+    dfu_sec_modern()
+    dfu_sec_ip7()
+  } else {
+    dfu_sec_modern()
+    dfu_sec_ip7()
+    dfu_sec_home()
+  }
   print "Verify with:  m4cr41n dfu detect   (look for 05ac:1227)"
   print "Exit DFU: force-restart the device (button combo for your model)."
 }
