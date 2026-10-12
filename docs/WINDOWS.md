@@ -1,6 +1,19 @@
 # M4CR41N on Windows
 
-## Setup
+## Install (recommended)
+From an Administrator-or-not PowerShell (no admin needed):
+```powershell
+cd tools\win
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+This copies `nvs.exe`, the launchers, `m4cr41n.nvs` and `lib\` to
+`%LOCALAPPDATA%\m4cr41n`, adds it to your **user** PATH, and verifies with
+`m4cr41n version`. Open a **new** terminal afterwards, then run
+`m4cr41n doctor`. Custom location:
+`install.ps1 -InstallDir C:\tools\m4cr41n`.
+Uninstall: `powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\m4cr41n\uninstall.ps1"`.
+
+## Portable setup (no install)
 1. Use the bundled runtime: `tools\win\nvs.exe` (cross-compiled from NvS 2.1.0),
    or install your own `nvs.exe` on PATH / set `NVS_RUNTIME`.
 2. Launchers: `tools\win\m4cr41n.bat` (cmd) or `tools\win\m4cr41n.ps1` (PowerShell).
@@ -18,7 +31,17 @@
   libimobiledevice is absent), `dfu guide`
 - `firmware ...` (pure network, fully portable)
 - `doctor`, `jailbreak check` (detection only)
+- `apps`, `shot`, `restart`, `pair`, `backup info` (via libimobiledevice
+  Windows build, when installed)
 - Full NvS test suite: `tests\run_tests.bat [nvs.exe]`
+
+## Release package contents (Windows zip)
+Flat layout — the launchers and installer resolve it automatically:
+```
+m4cr41n-<ver>-windows\
+  nvs.exe  m4cr41n.bat  m4cr41n.ps1  install.ps1  uninstall.ps1
+  m4cr41n.nvs  lib\*.nvs  README.txt  WINDOWS.txt
+```
 
 ## Windows limitations
 - `nvram` and `secaudit` are macOS-only by nature (Apple firmware variables,

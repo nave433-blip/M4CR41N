@@ -1,5 +1,27 @@
 # M4CR41N progress log
 
+## Unreleased — Wave 2 (draft release notes for v1.1.0)
+- New commands: `apps list|find` (ideviceinstaller app inventory),
+  `shot` (idevicescreenshot), `restart` (idevicediagnostics reboot),
+  `pair list|validate` (idevicepair), `backup info` (idevicebackup2 —
+  backup status + explicit encryption verdict).
+- Jailbreak: expanded tool database — `jb_tools_for(ProductType, iOS)`
+  recommends checkra1n (A5-A11, iOS 12-14.8.1), palera1n (A8-A11,
+  iOS 15-16.7.x), or Dopamine (A12+, iOS 15-16.6.1); `jailbreak check`
+  now prints per-device recommendations with install hints.
+- CLI UX: unknown commands get a "did you mean" suggestion
+  (Levenshtein-based, pure `suggest_command`); help lists new commands.
+- secaudit: +2 checks — firewall stealth mode, automatic updates (7 total).
+- Windows: proper installer — `tools/win/install.ps1` (copies payload to
+  %LOCALAPPDATA%\m4cr41n, adds user PATH, verifies `m4cr41n version`) and
+  `uninstall.ps1`; `tools/win/nvs.exe` rebuilt from NvS Wave 21
+  (evaluator perf fixes included).
+- Tests: 6/6 suites green (new tests/test_wave2.nvs: app-list parsing,
+  version-range matching, tool DB, suggestions, tool hints).
+- NOTE: Gemini CLI still quota-blocked (free tier, 20 req/day, 429);
+  Wave 2 is solo senior review. The installer/launchers are parse-reviewed
+  but need a real Windows box for execution testing (see PLACEHOLDERS.md).
+
 ## 2026-10-12 — refinement rounds 1-3 (post-v1.0.0)
 Senior-review pass over every module; all changes tested (5/5 suites green).
 - device: fixed macOS DFU/recovery misclassification — system_profiler PIDs

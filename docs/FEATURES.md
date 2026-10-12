@@ -17,8 +17,13 @@ Every command below is implemented and tested. No stubs.
 | `firmware devices` | ipsw.me API | working (live-verified) |
 | `firmware list <dev> [--signed]` | ipsw.me API | working (live-verified) |
 | `firmware latest <dev>` | ipsw.me API | working (live-verified) |
-| `jailbreak check [udid]` | ProductType → checkm8 table | working (unit-tested) |
+| `jailbreak check [udid]` | ProductType+iOS → tool DB | working (unit-tested) |
 | `jailbreak run [udid]` | launches user-installed tool | implemented (needs hardware + tool) |
+| `apps list` / `apps find` | `ideviceinstaller -l` parsed | working (fixture-tested) |
+| `shot [udid] [file]` | `idevicescreenshot` | implemented (needs hardware) |
+| `restart [udid]` | `idevicediagnostics restart` | implemented (needs hardware) |
+| `pair list` / `pair validate` | `idevicepair` | implemented (needs hardware) |
+| `backup info [udid]` | `idevicebackup2 info` + encryption verdict | implemented (needs hardware) |
 | `version` / `help` | — | working |
 
 Competitor-inspired additions this release: unified device dashboard
