@@ -1,0 +1,4 @@
+boot-args	kext-dev-mode=1
+SystemAudioVolume	%
+efi-boot-device	<array><dict><key>IOMatch</key></dict></array>
+prev-lang:kbd	en-US:0

@@ -1,0 +1,44 @@
+// M4CR41N doctor module — dependency and environment check.
+// Verifies the nvs runtime, libimobiledevice suite, jailbreak tools,
+// SHSH/restore helpers, and prints per-OS install hints for gaps.
+
+let DOCTOR_TOOLS = [
+  ["idevice_id", "device detection (libimobiledevice)"],
+  ["ideviceinfo", "device info (libimobiledevice)"],
+  ["ideviceenterrecovery", "enter recovery (libimobiledevice)"],
+  ["irecovery", "recovery/DFU comms (libimobiledevice)"],
+  ["idevicediagnostics", "battery diagnostics (libimobiledevice)"],
+  ["idevicebackup2", "backup/restore (libimobiledevice)"],
+  ["idevicescreenshot", "screenshots (libimobiledevice)"],
+  ["checkra1n", "checkm8 jailbreak (A5-A11)"],
+  ["palera1n", "palera1n jailbreak (A8-A11, iOS 15-16)"],
+  ["tsschecker", "SHSH blob saver"],
+  ["futurerestore", "firmware restore with blobs"]
+]
+
+fn doctor_run() {
+  print ""
+  print "== M4CR41N doctor =="
+  print "host: " + m_os_label() + " (" + M_OS + ")"
+  print "nvs runtime: " + m_os_label() + " build — OK"
+  print ""
+  let missing = []
+  for (t in DOCTOR_TOOLS) {
+    let name = t[0]
+    let desc = t[1]
+    if (have(name)) {
+      print "[found]   " + name + "  (" + desc + ")"
+    } else {
+      print "[missing] " + name + "  (" + desc + ")"
+      push(missing, name)
+    }
+  }
+  print ""
+  if (len(missing) == 0) {
+    m_ok("all dependencies present.")
+    return true
+  }
+  m_warn(str(len(missing)) + " tool(s) missing. Install hints:")
+  for (m in missing) { print "  " + m + ": " + tool_hint(m) }
+  return false
+}

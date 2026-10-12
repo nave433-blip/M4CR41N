@@ -1,0 +1,99 @@
+// M4CR41N nvram module — macOS NVRAM variable management.
+// macOS-only: reads/writes firmware variables via the `nvram` tool.
+// Writes need root; SIP may block security-sensitive variables.
+
+// nvram_dump(): hash of all variables from `nvram -p`.
+fn nvram_dump() {
+  if (!M_IS_MAC) {
+    m_warn("NVRAM tools are macOS-only (this host: " + m_os_label() + ").")
+    return {}
+  }
+  if (!require_tool("nvram")) {
+    return {}
+  }
+  let out = sh("nvram -p")
+  if (out == "") {
+    m_warn("nvram -p returned nothing (needs root for full dump: sudo).")
+    return {}
+  }
+  return parse_nvram_dump(out)
+}
+
+// parse_nvram_dump(text): "name<TAB>value" lines -> hash (pure, testable).
+fn parse_nvram_dump(text) {
+  let h = {}
+  for (line in split(text, "\n")) {
+    let i = index_of(line, "\t")
+    if (i > 0) {
+      h[trim(line[0:i])] = trim(line[i+1:len(line)])
+    }
+  }
+  return h
+}
+
+// nvram_get(name): single variable value.
+fn nvram_get(name) {
+  if (!M_IS_MAC) {
+    m_warn("NVRAM tools are macOS-only.")
+    return null
+  }
+  if (!require_tool("nvram")) {
+    return null
+  }
+  let r = sh_ok("nvram " + name)
+  if (!r[1] || r[0] == "") {
+    m_warn("variable not found: " + name)
+    return null
+  }
+  // output looks like "name\tvalue"
+  let i = index_of(r[0], "\t")
+  if (i >= 0) {
+    return trim(r[0][i+1:len(r[0])])
+  }
+  return r[0]
+}
+
+// nvram_set(name, value): write a variable (needs sudo for most).
+fn nvram_set(name, value) {
+  if (!M_IS_MAC) {
+    m_warn("NVRAM tools are macOS-only.")
+    return false
+  }
+  if (!require_tool("nvram")) {
+    return false
+  }
+  m_warn("writing NVRAM variable '" + name + "' (may need sudo / SIP off for protected vars).")
+  let r = sh_ok("nvram " + name + "=\"" + value + "\"")
+  if (r[1]) {
+    m_ok("set " + name) } else { m_err("failed: " + r[0])
+  }
+  return r[1]
+}
+
+// nvram_delete(name): delete a variable.
+fn nvram_delete(name) {
+  if (!M_IS_MAC) {
+    m_warn("NVRAM tools are macOS-only.")
+    return false
+  }
+  if (!require_tool("nvram")) {
+    return false
+  }
+  m_warn("deleting NVRAM variable '" + name + "'.")
+  let r = sh_ok("nvram -d " + name)
+  if (r[1]) {
+    m_ok("deleted " + name) } else { m_err("failed: " + r[0])
+  }
+  return r[1]
+}
+
+// nvram_boot_args(): convenience reader for the classic research variable.
+fn nvram_boot_args() {
+  let v = nvram_get("boot-args")
+  if (v == null) {
+    m_info("boot-args not set.")
+    return null
+  }
+  print "boot-args = " + v
+  return v
+}

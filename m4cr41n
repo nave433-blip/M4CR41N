@@ -1,0 +1,27 @@
+#!/bin/sh
+# m4cr41n launcher — finds the NvS runtime and runs the M4CR41N CLI.
+# Env overrides: NVS_RUNTIME=/path/to/nvs
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+find_nvs() {
+  if [ -n "${NVS_RUNTIME:-}" ] && [ -x "$NVS_RUNTIME" ]; then
+    printf '%s' "$NVS_RUNTIME"; return 0
+  fi
+  if command -v nvs >/dev/null 2>&1; then
+    command -v nvs; return 0
+  fi
+  # beside the repo, or a bundled runtime dir
+  for c in "$HERE/../nvs-lang/bin/nvs" "$HERE/tools/nvs" "$HERE/nvs"; do
+    if [ -x "$c" ]; then printf '%s' "$c"; return 0; fi
+  done
+  return 1
+}
+
+NVS="$(find_nvs)" || {
+  echo "m4cr41n: nvs runtime not found." >&2
+  echo "  install: build github.com/nave433-blip NvS (go build ./cmd/nvs)" >&2
+  echo "  then: export NVS_RUNTIME=/path/to/nvs  or put nvs on PATH" >&2
+  exit 2
+}
+exec "$NVS" run "$HERE/m4cr41n.nvs" "$@"

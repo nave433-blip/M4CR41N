@@ -1,0 +1,202 @@
+// M4CR41N core library — shared helpers for every tool module.
+// Imported by m4cr41n.nvs and by the test suite. No side effects on import.
+
+// ---- platform -----------------------------------------------------------
+// Detect OS via shell so this works on any nvs runtime (old or new).
+fn detect_os() {
+  let u = system("uname -s 2>/dev/null")
+  // system() appends "\n[exit error: ...]" on failure — check the raw text.
+  if (contains(u, "Darwin")) {
+    return "darwin"
+  }
+  if (contains(u, "Linux")) {
+    return "linux"
+  }
+  let w = system("ver 2>nul")
+  if (contains(w, "Windows")) {
+    return "windows"
+  }
+  return "unknown"
+}
+
+let M_OS = detect_os()            // "darwin" | "linux" | "windows" | ...
+let M_IS_MAC = M_OS == "darwin"
+let M_IS_WIN = M_OS == "windows"
+let M_IS_LINUX = M_OS == "linux"
+
+fn m_os_label() {
+  if (M_IS_MAC) {
+    return "macOS"
+  }
+  if (M_IS_WIN) {
+    return "Windows"
+  }
+  if (M_IS_LINUX) {
+    return "Linux"
+  }
+  return M_OS
+}
+
+// ---- shell --------------------------------------------------------------
+// have(cmd): true when an executable is on PATH.
+fn have(cmd) {
+  let probe = ""
+  if (M_IS_WIN) {
+    probe = "where " + cmd + " 2>nul"
+  } else {
+    probe = "command -v " + cmd + " >/dev/null 2>&1 && echo yes"
+  }
+  let out = system(probe)
+  return contains(out, cmd) || contains(out, "yes")
+}
+
+// sh(cmd): run a shell command, return stdout ("" on failure). Never throws.
+fn sh(cmd) {
+  let out = system(cmd)
+  // system() appends "\n[exit error: ...]" on nonzero exit — strip it.
+  let marker = "[exit error:"
+  let idx = index_of(out, marker)
+  if (idx >= 0) {
+    return trim(out[0:idx])
+  }
+  return trim(out)
+}
+
+// sh_ok(cmd): [output, success_bool]
+fn sh_ok(cmd) {
+  let out = system(cmd)
+  let marker = "[exit error:"
+  let idx = index_of(out, marker)
+  if (idx >= 0) {
+    return [trim(out[0:idx]), false]
+  }
+  return [trim(out), true]
+}
+
+// ---- output -------------------------------------------------------------
+fn m_info(msg)  { print "[*] " + msg }
+fn m_ok(msg)    { print "[+] " + msg }
+fn m_warn(msg)  { print "[!] " + msg }
+fn m_err(msg)   { eprint "[x] " + msg }
+
+fn m_die(msg, code) {
+  m_err(msg)
+  if (code == null) {
+    code = 1
+  }
+  exit(code)
+}
+
+// ---- parsing ------------------------------------------------------------
+// parse_kv(text): "Key: value" lines -> hash. Used for ideviceinfo, nvram -p, etc.
+fn parse_kv(text) {
+  let h = {}
+  let lines = split(text, "\n")
+  for (line in lines) {
+    let i = index_of(line, ":")
+    if (i > 0) {
+      let k = trim(line[0:i])
+      let v = trim(line[i+1:len(line)])
+      h[k] = v
+    }
+  }
+  return h
+}
+
+// table(rows): print aligned two-column rows: [[k, v], ...]
+fn m_table(rows) {
+  let w = 0
+  for (r in rows) { if (len(r[0]) > w) { w = len(r[0]) } }
+  for (r in rows) {
+    let pad = ""
+    let n = w - len(r[0]) + 2
+    let i = 0
+    while (i < n) {
+      pad = pad + " "
+      i = i + 1
+    }
+    print "  " + r[0] + pad + r[1]
+  }
+}
+
+// ---- dependency metadata -------------------------------------------------
+// tool_hints: install guidance per tool, per OS family.
+let TOOL_HINTS = {
+  "ideviceinfo": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils  (or your distro equivalent)",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "idevice_id": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "irecovery": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "ideviceenterrecovery": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "idevicediagnostics": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "idevicebackup2": {
+    "darwin": "brew install libimobiledevice",
+    "linux":  "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "checkra1n": {
+    "darwin": "download from checkra.in (macOS build)",
+    "linux":  "download from checkra.in (Linux build)",
+    "windows": "not available — use a macOS/Linux host or checkn1x USB boot"
+  },
+  "palera1n": {
+    "darwin": "see palera.in (macOS build)",
+    "linux":  "see palera.in (Linux build)",
+    "windows": "use palen1x USB boot image"
+  },
+  "tsschecker": {
+    "darwin": "brew install tsschecker  (or build from github.com/tihmstar/tsschecker)",
+    "linux":  "build from github.com/tihmstar/tsschecker",
+    "windows": "build from github.com/tihmstar/tsschecker"
+  },
+  "futurerestore": {
+    "darwin": "download a futurerestore build for macOS",
+    "linux":  "download a futurerestore build for Linux",
+    "windows": "download futurerestore for Windows (see docs/WINDOWS.md)"
+  }
+}
+
+fn tool_hint(tool) {
+  if (TOOL_HINTS[tool] == null) {
+    return "no install hint recorded for " + tool
+  }
+  let per = TOOL_HINTS[tool]
+  if (M_IS_MAC && per["darwin"] != null) {
+    return per["darwin"]
+  }
+  if (M_IS_WIN && per["windows"] != null) {
+    return per["windows"]
+  }
+  if (M_IS_LINUX && per["linux"] != null) {
+    return per["linux"]
+  }
+  return per["darwin"]
+}
+
+// require_tool(tool): true if present, else prints hint and returns false.
+fn require_tool(tool) {
+  if (have(tool)) {
+    return true
+  }
+  m_warn("'" + tool + "' not found on PATH.")
+  m_info("install: " + tool_hint(tool))
+  return false
+}

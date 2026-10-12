@@ -1,0 +1,16 @@
+// M4CR41N tests — jailbreak module (pure parts).
+import "../lib/core.nvs"
+import "../lib/device.nvs"
+import "../lib/jailbreak.nvs"
+
+fn t_jb_vuln() {
+  assert(jb_vulnerable_product("iPhone10,3") == true, "iPhone X vulnerable")
+  assert(jb_vulnerable_product("iPhone8,1") == true, "iPhone 6s vulnerable")
+  assert(jb_vulnerable_product("iPhone7,2") == true, "iPhone 6 vulnerable")
+  assert(jb_vulnerable_product("iPhone14,5") == false, "iPhone 13 not vulnerable")
+  assert(jb_vulnerable_product("iPad13,1") == false, "modern iPad not vulnerable")
+  assert(jb_vulnerable_product(null) == false, "null not vulnerable")
+}
+
+t_jb_vuln()
+print "test_jailbreak OK"

@@ -1,0 +1,34 @@
+// M4CR41N tests — core helpers.
+import "../lib/core.nvs"
+import "../lib/nvram.nvs"
+
+fn t_parse_kv() {
+  let h = parse_kv("DeviceName: Test\nProductType: iPhone10,1\nNoColonLine\n")
+  assert(h["DeviceName"] == "Test", "parse_kv DeviceName")
+  assert(h["ProductType"] == "iPhone10,1", "parse_kv ProductType")
+  assert(h["NoColonLine"] == null, "parse_kv skips colon-less lines")
+}
+
+fn t_detect_os() {
+  let os = detect_os()
+  assert(os == "darwin" || os == "linux" || os == "windows" || os == "unknown", "detect_os known value")
+  assert(M_OS == os, "M_OS matches detect_os")
+}
+
+fn t_tool_hint() {
+  let h = tool_hint("ideviceinfo")
+  assert(len(h) > 0, "tool_hint non-empty")
+  assert(tool_hint("no-such-tool-xyz") != "", "tool_hint fallback")
+}
+
+fn t_parse_nvram() {
+  let txt = read_file("../tests/fixtures/nvram-p.txt")
+  let h = parse_nvram_dump(txt)
+  assert(h["boot-args"] == "kext-dev-mode=1", "nvram boot-args")
+  assert(h["prev-lang:kbd"] == "en-US:0", "nvram colon-in-name")
+}
+
+t_parse_kv()
+t_detect_os()
+t_tool_hint()
+print "test_core OK"

@@ -1,0 +1,198 @@
+// M4CR41N device module — detect and query attached Apple devices.
+// Backends: libimobiledevice CLI tools (idevice_id, ideviceinfo,
+// idevicediagnostics) with per-OS USB enumeration fallback.
+
+// device_udids(): [udid, ...] of attached iOS devices in normal mode.
+fn device_udids() {
+  if (!have("idevice_id")) {
+    return []
+  }
+  let out = sh("idevice_id -l")
+  if (out == "") {
+    return []
+  }
+  let ids = []
+  for (line in split(out, "\n")) {
+    let t = trim(line)
+    // UDIDs are hex (24-64 chars, dashes allowed); anything else is an
+    // error message from idevice_id (e.g. usbmuxd not running).
+    if (is_udid(t)) {
+      push(ids, t)
+    }
+  }
+  return ids
+}
+
+// is_udid(s): strict shape check for a device UDID.
+fn is_udid(s) {
+  if (len(s) < 24 || len(s) > 64) {
+    return false
+  }
+  let i = 0
+  while (i < len(s)) {
+    let c = s[i]
+    let okc = (c >= "0" && c <= "9") || (c >= "a" && c <= "f") || (c >= "A" && c <= "F") || c == "-"
+    if (!okc) {
+      return false
+    }
+    i = i + 1
+  }
+  return true
+}
+
+// device_info(udid): hash of ideviceinfo key/value pairs, {} when unavailable.
+fn device_info(udid) {
+  if (!have("ideviceinfo")) {
+    return {}
+  }
+  let cmd = "ideviceinfo"
+  if (udid != null && udid != "") {
+    cmd = cmd + " -u " + udid
+  }
+  let out = sh(cmd)
+  if (starts_with(trim(out), "ERROR")) {
+    return {}
+  }
+  return parse_kv(out)
+}
+
+// usb_apple_devices(): fallback enumeration of Apple USB devices (VID 05ac)
+// when libimobiledevice is absent. Returns [{bus, device, pid, desc}, ...].
+fn usb_apple_devices() {
+  let found = []
+  if (M_IS_MAC) {
+    let out = sh("system_profiler SPUSBDataType 2>/dev/null")
+    // system_profiler output is indented; look for Apple vendor blocks.
+    let lines = split(out, "\n")
+    let cur = null
+    for (line in lines) {
+      let t = trim(line)
+      if (starts_with(t, "Vendor ID: 0x05ac")) {
+        cur = {"bus": "usb", "device": "?", "pid": "?", "desc": "Apple device"}
+      }
+      if (cur != null && starts_with(t, "Product ID:")) {
+        cur["pid"] = trim(split(t, ":")[1])
+      }
+      if (cur != null && starts_with(t, "Location ID:")) {
+        push(found, cur)
+        cur = null
+      }
+    }
+  } else if (M_IS_LINUX) {
+    if (have("lsusb")) {
+      let out = sh("lsusb -d 05ac:")
+      for (line in split(out, "\n")) {
+        let t = trim(line)
+        if (t == "") {
+          continue
+        }
+        // "Bus 001 Device 002: ID 05ac:12a8 Apple, Inc. iPhone"
+        let pid = "?"
+        let i = index_of(t, "05ac:")
+        if (i >= 0) {
+          pid = trim(t[i+5:i+9])
+        }
+        push(found, {"bus": "usb", "device": "?", "pid": pid, "desc": t})
+      }
+    }
+  } else if (M_IS_WIN) {
+    // PowerShell: Apple USB devices via PnP.
+    let ps = "powershell -NoProfile -Command \"Get-PnpDevice | Where-Object { $_.InstanceId -match 'USB\\\\VID_05AC' } | ForEach-Object { $_.InstanceId + '|' + $_.FriendlyName }\""
+    let out = sh(ps)
+    for (line in split(out, "\n")) {
+      let t = trim(line)
+      if (t == "") {
+        continue
+      }
+      let parts = split(t, "|")
+      let pid = "?"
+      let i = index_of(parts[0], "PID_")
+      if (i >= 0) {
+        pid = parts[0][i+4:i+8]
+      }
+      let desc = parts[0]
+      if (len(parts) > 1) {
+        desc = parts[1]
+      }
+      push(found, {"bus": "usb", "device": "?", "pid": pid, "desc": desc})
+    }
+  }
+  return found
+}
+
+// device_dashboard(udid): print the 3uTools-style unified device overview.
+fn device_dashboard(udid) {
+  let ids = device_udids()
+  if (len(ids) == 0) {
+    m_warn("no iOS device detected in normal mode.")
+    let usb = usb_apple_devices()
+    if (len(usb) > 0) {
+      m_info("Apple USB hardware seen (device may be in recovery/DFU or untrusted):")
+      for (d in usb) { print "  pid=" + d["pid"] + "  " + d["desc"] }
+      m_info("hint: run 'm4cr41n dfu detect' or trust this computer on the device.")
+    } else {
+      m_info("hint: " + tool_hint("idevice_id"))
+    }
+    return false
+  }
+  let target = udid
+  if (target == null || target == "") {
+    target = ids[0]
+  }
+  m_info("device: " + target)
+  let info = device_info(target)
+  if (len(info) == 0) {
+    m_warn("ideviceinfo returned nothing — is the device trusted/paired?")
+    return false
+  }
+  let rows = [
+    ["DeviceName",    info["DeviceName"]],
+    ["ProductType",   info["ProductType"]],
+    ["ProductVersion", info["ProductVersion"]],
+    ["BuildVersion",  info["BuildVersion"]],
+    ["ModelNumber",   info["ModelNumber"]],
+    ["SerialNumber",  info["SerialNumber"]],
+    ["UDID",          info["UniqueDeviceID"]],
+    ["WiFiAddress",   info["WiFiAddress"]],
+    ["ActivationState", info["ActivationState"]],
+    ["BrickState",    info["BrickState"]]
+  ]
+  let clean = []
+  for (r in rows) {
+    let v = r[1]
+    if (v == null) {
+      v = "n/a"
+    }
+    push(clean, [r[0], v])
+  }
+  m_table(clean)
+  return true
+}
+
+// battery_health(udid): battery info via idevicediagnostics.
+fn battery_health(udid) {
+  if (!require_tool("idevicediagnostics")) {
+    return false
+  }
+  let cmd = "idevicediagnostics"
+  if (udid != null && udid != "") {
+    cmd = cmd + " -u " + udid
+  }
+  let out = sh(cmd + " diagnostics")
+  if (out == "") {
+    m_warn("no diagnostics output (device locked or unsupported).")
+    return false
+  }
+  // print at most 60 lines (portable — no `head` dependency)
+  let lines = split(out, "\n")
+  let n = len(lines)
+  if (n > 60) {
+    n = 60
+  }
+  let i = 0
+  while (i < n) {
+    print lines[i]
+    i = i + 1
+  }
+  return true
+}

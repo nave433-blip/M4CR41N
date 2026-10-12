@@ -1,0 +1,13 @@
+// M4CR41N tests — modes module (pure parts).
+import "../lib/core.nvs"
+import "../lib/modes.nvs"
+
+fn t_classify_pid() {
+  assert(classify_pid("1227") == "DFU MODE", "1227 -> DFU")
+  assert(classify_pid("1281") == "RECOVERY MODE", "1281 -> recovery")
+  assert(classify_pid("1280") == "RECOVERY MODE", "1280 -> recovery")
+  assert(classify_pid("12a8") == "normal/other (pid 12a8)", "12a8 -> normal")
+}
+
+t_classify_pid()
+print "test_modes OK"

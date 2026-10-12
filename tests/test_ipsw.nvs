@@ -1,0 +1,18 @@
+// M4CR41N tests — ipsw module (pure parts, no network).
+import "../lib/core.nvs"
+import "../lib/ipsw.nvs"
+
+fn t_ipsw_signed() {
+  let fws = [
+    {"version": "16.7.16", "buildid": "20H392", "signed": true, "url": "http://a"},
+    {"version": "16.6", "buildid": "20G75", "signed": false, "url": "http://b"},
+    {"version": "17.0", "buildid": "21A123", "signed": true, "url": "http://c"}
+  ]
+  let s = ipsw_signed(fws)
+  assert(len(s) == 2, "signed filter count")
+  assert(s[0]["version"] == "16.7.16", "signed keeps order")
+  assert(len(ipsw_signed([])) == 0, "empty in -> empty out")
+}
+
+t_ipsw_signed()
+print "test_ipsw OK"

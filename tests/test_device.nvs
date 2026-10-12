@@ -1,0 +1,26 @@
+// M4CR41N tests — device module (pure parts).
+import "../lib/core.nvs"
+import "../lib/device.nvs"
+
+fn t_is_udid() {
+  assert(is_udid("000080300000000000000000") == true, "24-hex UDID")
+  assert(is_udid("00008030-001234567890ABCD") == true, "dashes allowed")
+  assert(is_udid("00008030000000000000000e") == true, "lowercase hex")
+  assert(is_udid("ERROR: Unable to retrieve device list!") == false, "error text rejected")
+  assert(is_udid("") == false, "empty rejected")
+  assert(is_udid("short") == false, "short rejected")
+  assert(is_udid("00008030ZZZZ000000000000") == false, "non-hex rejected")
+}
+
+fn t_ideviceinfo_fixture() {
+  let txt = read_file("../tests/fixtures/ideviceinfo.txt")
+  let h = parse_kv(txt)
+  assert(h["ProductType"] == "iPhone10,1", "fixture ProductType")
+  assert(h["ProductVersion"] == "16.7.16", "fixture ProductVersion")
+  assert(h["DeviceName"] == "Evan's iPhone", "fixture DeviceName")
+  assert(h["TimeZone"] == "America/Indiana/Indianapolis", "fixture value with slashes")
+}
+
+t_is_udid()
+t_ideviceinfo_fixture()
+print "test_device OK"

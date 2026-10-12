@@ -1,0 +1,95 @@
+// M4CR41N secaudit module — macOS system security posture audit.
+// Reads: SIP (csrutil), FileVault (fdesetup), Gatekeeper (spctl),
+// firewall (socketfilterfw), Secure Boot / boot args. Produces a scored report.
+
+// one check -> [label, status_text, ok_bool]
+fn sa_csrutil() {
+  if (!have("csrutil")) {
+    return ["System Integrity Protection", "csrutil not found", false]
+  }
+  let out = sh("csrutil status")
+  if (contains(out, "enabled")) {
+    return ["System Integrity Protection", "enabled", true]
+  }
+  if (contains(out, "disabled")) {
+    return ["System Integrity Protection", "DISABLED — " + out, false]
+  }
+  return ["System Integrity Protection", "unknown: " + out, false]
+}
+
+fn sa_filevault() {
+  if (!have("fdesetup")) {
+    return ["FileVault", "fdesetup not found", false]
+  }
+  let out = sh("fdesetup status")
+  if (contains(out, "FileVault is On")) {
+    return ["FileVault", "on", true]
+  }
+  return ["FileVault", "OFF — " + out, false]
+}
+
+fn sa_gatekeeper() {
+  if (!have("spctl")) {
+    return ["Gatekeeper", "spctl not found", false]
+  }
+  let out = sh("spctl --status")
+  if (contains(out, "enabled")) {
+    return ["Gatekeeper", "enabled", true]
+  }
+  return ["Gatekeeper", "DISABLED — " + out, false]
+}
+
+fn sa_firewall() {
+  let fw = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+  let out = sh(fw + " --getglobalstate 2>/dev/null")
+  if (out == "") {
+    return ["Firewall", "could not query", false]
+  }
+  if (contains(out, "enabled")) {
+    return ["Firewall", "enabled", true]
+  }
+  return ["Firewall", "disabled", false]
+}
+
+fn sa_sip_extra() {
+  // Report notable boot-args that weaken security posture.
+  let out = sh("nvram boot-args 2>/dev/null")
+  if (out == "") {
+    return ["boot-args", "not set", true]
+  }
+  let risky = ["kext-dev-mode=1", "amfi_get_out_of_my_way=1", "-no_compchk"]
+  let found = []
+  for (r in risky) { if (contains(out, r)) { push(found, r) } }
+  if (len(found) > 0) {
+    return ["boot-args", "RISKY flags: " + join(found, ", "), false]
+  }
+  return ["boot-args", trim(out), true]
+}
+
+fn secaudit_run() {
+  if (!M_IS_MAC) {
+    m_warn("security audit targets macOS (this host: " + m_os_label() + ").")
+    m_info("on Windows, see docs/WINDOWS.md for the equivalent checklist.")
+    return 0
+  }
+  print ""
+  print "== M4CR41N macOS security posture audit =="
+  let checks = [sa_csrutil(), sa_filevault(), sa_gatekeeper(), sa_firewall(), sa_sip_extra()]
+  let pass = 0
+  for (c in checks) {
+    let mark = c[2] ? "[PASS]" : "[FAIL]"
+    if (c[2]) {
+      pass = pass + 1
+    }
+    print mark + "  " + c[0] + ": " + c[1]
+  }
+  print ""
+  print "score: " + str(pass) + "/" + str(len(checks))
+  if (pass == len(checks)) {
+    m_ok("hardened baseline met.")
+  }
+  else {
+    m_warn("review the FAIL items above.")
+  }
+  return pass
+}

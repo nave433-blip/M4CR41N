@@ -1,0 +1,209 @@
+// m4cr41n.nvs — M4CR41N command-line entry point.
+// Usage: nvs run m4cr41n.nvs <command> [args...]
+//   or:  ./m4cr41n <command> [args...]
+
+import "lib/core.nvs"
+import "lib/device.nvs"
+import "lib/modes.nvs"
+import "lib/nvram.nvs"
+import "lib/secaudit.nvs"
+import "lib/ipsw.nvs"
+import "lib/doctor.nvs"
+import "lib/jailbreak.nvs"
+
+let VERSION = "1.0.0"
+
+fn usage() {
+  print "M4CR41N v" + VERSION + " — Native Mac Chaos Engine (Navescript)"
+  print ""
+  print "usage: m4cr41n <command> [args]"
+  print ""
+  print "  doctor                  check dependencies and environment"
+  print "  devices                 list attached iOS devices"
+  print "  info [udid]             device dashboard (model, iOS, serial, ...)"
+  print "  battery [udid]          battery diagnostics"
+  print "  recovery enter [udid]   reboot device into recovery mode"
+  print "  recovery exit           reboot device out of recovery mode"
+  print "  dfu detect              find devices in DFU / recovery via USB"
+  print "  dfu guide               button-combo steps to enter DFU"
+  print "  nvram dump              dump all NVRAM variables (macOS)"
+  print "  nvram get <name>        read one NVRAM variable (macOS)"
+  print "  nvram set <name> <val>  write one NVRAM variable (macOS, careful)"
+  print "  nvram delete <name>     delete one NVRAM variable (macOS)"
+  print "  nvram boot-args         show boot-args (macOS)"
+  print "  secaudit                macOS security posture audit"
+  print "  firmware devices        list Apple devices known to ipsw.me"
+  print "  firmware list <dev> [--signed]"
+  print "                          firmware builds for a device identifier"
+  print "  firmware latest <dev>   newest signed firmware + download URL"
+  print "  jailbreak check [udid]  checkm8-vulnerability detection"
+  print "  jailbreak run [udid]    launch installed jailbreak tool"
+  print "  version                 print version"
+  print "  help                    this help"
+  print ""
+  print "Out of scope by design: iCloud activation bypass, MDM bypass,"
+  print "passcode bypass. See SCOPE.md."
+}
+
+fn cmd_firmware(a) {
+  if (len(a) < 1) {
+    m_die("usage: m4cr41n firmware devices|list <dev> [--signed]|latest <dev>")
+  }
+  let sub = a[0]
+  if (sub == "devices") {
+    let devs = ipsw_devices()
+    for (d in devs) { print d["identifier"] + "  " + d["name"] }
+    return null
+  }
+  if (sub == "list" || sub == "latest") {
+    if (len(a) < 2) {
+      m_die("usage: m4cr41n firmware " + sub + " <device identifier or name>")
+    }
+    let ident = a[1]
+    // allow fuzzy product names like "iPhone 8"
+    if (!starts_with(ident, "iPhone") && !starts_with(ident, "iPad") && !starts_with(ident, "iPod") && !starts_with(ident, "AppleTV") && !starts_with(ident, "Watch")) {
+      let found = ipsw_lookup_device(ident)
+      if (found != null) {
+        ident = found
+        m_info("resolved to " + ident)
+      }
+    } else if (index_of(ident, ",") < 0 && index_of(ident, " ") >= 0) {
+      let found = ipsw_lookup_device(ident)
+      if (found != null) {
+        ident = found
+        m_info("resolved to " + ident)
+      }
+    }
+    let fws = ipsw_firmwares(ident)
+    let only_signed = false
+    for (x in a) { if (x == "--signed") { only_signed = true } }
+    if (only_signed || sub == "latest") {
+      fws = ipsw_signed(fws)
+    }
+    if (sub == "latest") {
+      if (len(fws) == 0) {
+        m_warn("no signed firmware for " + ident)
+        return null
+      }
+      let f = fws[0]
+      print "latest signed: iOS " + str(f["version"]) + " (" + str(f["buildid"]) + ")"
+      print "url: " + str(f["url"])
+      return null
+    }
+    ipsw_print_table(fws)
+    return null
+  }
+  m_die("unknown firmware subcommand: " + sub)
+}
+
+fn cmd_nvram(a) {
+  if (len(a) < 1) {
+    m_die("usage: m4cr41n nvram dump|get <name>|set <name> <val>|delete <name>|boot-args")
+  }
+  let sub = a[0]
+  if (sub == "dump") {
+    let h = nvram_dump()
+    let rows = []
+    for (k in keys(h)) { push(rows, [k, h[k]]) }
+    m_table(rows)
+  } else if (sub == "get") {
+    if (len(a) < 2) {
+      m_die("usage: m4cr41n nvram get <name>")
+    }
+    let v = nvram_get(a[1])
+    if (v != null) {
+      print a[1] + " = " + v
+    }
+  } else if (sub == "set") {
+    if (len(a) < 3) {
+      m_die("usage: m4cr41n nvram set <name> <value>")
+    }
+    nvram_set(a[1], a[2])
+  } else if (sub == "delete") {
+    if (len(a) < 2) {
+      m_die("usage: m4cr41n nvram delete <name>")
+    }
+    nvram_delete(a[1])
+  } else if (sub == "boot-args") {
+    nvram_boot_args()
+  } else {
+    m_die("unknown nvram subcommand: " + sub)
+  }
+}
+
+fn main() {
+  let a = args()
+  if (len(a) == 0) {
+    usage()
+    exit(2)
+  }
+  let cmd = a[0]
+  let rest = a[1:len(a)]
+
+  if (cmd == "help" || cmd == "--help" || cmd == "-h") {
+    usage()
+  }
+  else if (cmd == "version" || cmd == "--version" || cmd == "-v") { print "m4cr41n " + VERSION }
+  else if (cmd == "doctor") { doctor_run() }
+  else if (cmd == "devices") {
+    let ids = device_udids()
+    if (len(ids) == 0) {
+      m_warn("no iOS devices detected.")
+    }
+    for (id in ids) { print id }
+  }
+  else if (cmd == "info") {
+    let u = len(rest) > 0 ? rest[0] : ""
+    device_dashboard(u)
+  }
+  else if (cmd == "battery") {
+    let u = len(rest) > 0 ? rest[0] : ""
+    battery_health(u)
+  }
+  else if (cmd == "recovery") {
+    if (len(rest) == 0) {
+      m_die("usage: m4cr41n recovery enter|exit [udid]")
+    }
+    if (rest[0] == "enter") {
+      let u = len(rest) > 1 ? rest[1] : ""
+      recovery_enter(u)
+    } else if (rest[0] == "exit") {
+      recovery_exit()
+    } else { m_die("usage: m4cr41n recovery enter|exit [udid]") }
+  }
+  else if (cmd == "dfu") {
+    if (len(rest) == 0) {
+      m_die("usage: m4cr41n dfu detect|guide")
+    }
+    if (rest[0] == "detect") {
+      dfu_detect()
+    }
+    else if (rest[0] == "guide") { dfu_guide(null) }
+    else {
+      m_die("usage: m4cr41n dfu detect|guide")
+    }
+  }
+  else if (cmd == "nvram") { cmd_nvram(rest) }
+  else if (cmd == "secaudit") { secaudit_run() }
+  else if (cmd == "firmware") { cmd_firmware(rest) }
+  else if (cmd == "jailbreak") {
+    if (len(rest) == 0) {
+      m_die("usage: m4cr41n jailbreak check|run [udid]")
+    }
+    let u = len(rest) > 1 ? rest[1] : ""
+    if (rest[0] == "check") {
+      jb_check(u)
+    }
+    else if (rest[0] == "run") { jb_run(u) }
+    else {
+      m_die("usage: m4cr41n jailbreak check|run [udid]")
+    }
+  }
+  else {
+    m_err("unknown command: " + cmd)
+    usage()
+    exit(2)
+  }
+}
+
+main()

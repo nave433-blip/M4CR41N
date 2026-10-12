@@ -1,0 +1,67 @@
+// M4CR41N ipsw module — Apple firmware metadata via the public ipsw.me API.
+// API: https://api.ipsw.me/v4/devices and /v4/device/<identifier>
+// (community API over Apple's own CDN links; URLs point at Apple servers).
+
+let IPSW_API = "https://api.ipsw.me/v4"
+
+// ipsw_devices(): [{identifier, name}, ...]
+fn ipsw_devices() {
+  let raw = http_get(IPSW_API + "/devices")
+  if (raw == "" || raw == null) {
+    m_err("ipsw.me API unreachable.")
+    return []
+  }
+  let arr = json_parse(raw)
+  let out = []
+  for (d in arr) { push(out, {"identifier": d["identifier"], "name": d["name"]}) }
+  return out
+}
+
+// ipsw_firmwares(identifier): raw firmware list for a device.
+fn ipsw_firmwares(identifier) {
+  let raw = http_get(IPSW_API + "/device/" + identifier)
+  if (raw == "" || raw == null) {
+    m_err("ipsw.me API unreachable or unknown identifier '" + identifier + "'.")
+    return []
+  }
+  let doc = json_parse(raw)
+  if (doc["firmwares"] == null) {
+    return []
+  }
+  return doc["firmwares"]
+}
+
+// ipsw_signed(firmwares): filter to currently-signed builds.
+fn ipsw_signed(firmwares) {
+  let out = []
+  for (f in firmwares) {
+    if (f["signed"] == true) {
+      push(out, f)
+    }
+  }
+  return out
+}
+
+// ipsw_print_table(firmwares): human-readable firmware list.
+fn ipsw_print_table(firmwares) {
+  if (len(firmwares) == 0) {
+    m_warn("no firmwares found.")
+    return null
+  }
+  for (f in firmwares) {
+    let tag = f["signed"] == true ? "[SIGNED]  " : "[unsigned]"
+    print tag + " iOS " + str(f["version"]) + " (" + str(f["buildid"]) + ")  " + str(f["url"])
+  }
+}
+
+// ipsw_lookup_device(name): fuzzy match a product name -> identifier.
+fn ipsw_lookup_device(name) {
+  let devs = ipsw_devices()
+  let needle = name
+  for (d in devs) {
+    if (contains(d["name"], needle) || contains(d["identifier"], needle)) {
+      return d["identifier"]
+    }
+  }
+  return null
+}

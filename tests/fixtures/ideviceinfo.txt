@@ -1,0 +1,12 @@
+DeviceName: Evan's iPhone
+DeviceClass: iPhone
+ProductType: iPhone10,1
+ProductVersion: 16.7.16
+BuildVersion: 20H392
+ModelNumber: MQ6K2
+SerialNumber: F2LX00000000
+UniqueDeviceID: 000080300000000000000000
+WiFiAddress: aa:bb:cc:dd:ee:ff
+ActivationState: Activated
+BrickState: false
+TimeZone: America/Indiana/Indianapolis

@@ -1,0 +1,72 @@
+// M4CR41N jailbreak module — checkm8-vulnerability detection and
+// launcher for the user's own installed jailbreak tools.
+// SCOPE: detection + launching tools the user installed themselves
+// (checkra1n / palera1n, both open-source security-research tools).
+// M4CR41N ships NO exploit code and performs NO bypass of any kind.
+
+// ProductType prefixes with checkm8-vulnerable SoCs (A5-A11).
+let CHECKM8_PREFIXES = [
+  "iPhone8",   // A11: 8, 8 Plus, X
+  "iPhone9",   // A11: (covered for completeness)
+  "iPhone7",   // A10
+  "iPhone6",   // A8
+  "iPhone5",   // A6/A7
+  "iPad6", "iPad5", "iPad4", "iPad3", "iPad2",
+  "iPod7", "iPod5"
+]
+
+fn jb_vulnerable_product(product_type) {
+  if (product_type == null) {
+    return false
+  }
+  for (p in CHECKM8_PREFIXES) {
+    if (starts_with(product_type, p)) {
+      return true
+    }
+  }
+  // explicit A11 list (iPhone8,x / iPhone9,x / iPhone10,x)
+  if (starts_with(product_type, "iPhone10")) {
+    return true
+  }
+  return false
+}
+
+fn jb_check(udid) {
+  let info = device_info(udid)
+  if (len(info) == 0) {
+    m_warn("no device info — connect and trust a device first.")
+    return false
+  }
+  let pt = info["ProductType"]
+  let ver = info["ProductVersion"]
+  print "device: " + str(info["DeviceName"]) + " (" + str(pt) + ", iOS " + str(ver) + ")"
+  if (jb_vulnerable_product(pt)) {
+    m_ok(str(pt) + " has a checkm8-vulnerable SoC (A5-A11 bootrom).")
+    m_info("checkra1n supports iOS 12-14 on A5-A11; palera1n supports iOS 15-16 on A8-A11.")
+    return true
+  }
+  m_warn(str(pt) + " is NOT checkm8-vulnerable (A12+ or unknown). No bootrom jailbreak exists.")
+  return false
+}
+
+fn jb_run(udid) {
+  if (!jb_check(udid)) {
+    return false
+  }
+  if (have("checkra1n")) {
+    m_info("launching checkra1n (GUI)...")
+    sh("checkra1n &")
+    return true
+  }
+  if (have("palera1n")) {
+    // palera1n is interactive — it needs the real terminal, not our pipe.
+    m_info("palera1n is installed. Run it directly in your terminal:")
+    print "    sudo palera1n --tweaks <your iOS version>   (device must be in DFU mode)"
+    m_info("see 'm4cr41n dfu guide' for DFU entry steps.")
+    return true
+  }
+  m_warn("neither checkra1n nor palera1n is installed.")
+  m_info("checkra1n: " + tool_hint("checkra1n"))
+  m_info("palera1n: " + tool_hint("palera1n"))
+  return false
+}
