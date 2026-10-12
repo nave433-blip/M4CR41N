@@ -10,8 +10,10 @@ import "lib/secaudit.nvs"
 import "lib/ipsw.nvs"
 import "lib/doctor.nvs"
 import "lib/jailbreak.nvs"
+import "lib/apps.nvs"
+import "lib/backup.nvs"
 
-let VERSION = "1.0.0"
+let VERSION = "1.1.0"
 
 fn usage() {
   print "M4CR41N v" + VERSION + " — Native Mac Chaos Engine (Navescript)"
@@ -36,8 +38,17 @@ fn usage() {
   print "  firmware list <dev> [--signed]"
   print "                          firmware builds for a device identifier"
   print "  firmware latest <dev>   newest signed firmware + download URL"
-  print "  jailbreak check [udid]  checkm8-vulnerability detection"
+  print "  jailbreak check [udid]  checkm8/tool recommendation (no exploit code)"
   print "  jailbreak run [udid]    launch installed jailbreak tool"
+  print ""
+  print "  apps list [udid]        installed apps (ideviceinstaller)"
+  print "  apps find <name> [udid] search installed apps"
+  print "  shot [udid] [file]      capture device screenshot"
+  print "  restart [udid]          reboot the device"
+  print "  pair list               hosts paired with this machine"
+  print "  pair validate [udid]    check pairing record"
+  print "  backup info [udid]      backup status + encryption state"
+  print ""
   print "  version                 print version"
   print "  help                    this help"
   print ""
@@ -126,6 +137,46 @@ fn cmd_nvram(a) {
   }
 }
 
+fn cmd_apps(a) {
+  if (len(a) < 1) {
+    m_die("usage: m4cr41n apps list [udid] | apps find <name> [udid]")
+  }
+  if (a[0] == "list") {
+    let u = len(a) > 1 ? a[1] : ""
+    apps_list(u)
+  } else if (a[0] == "find") {
+    if (len(a) < 2) {
+      m_die("usage: m4cr41n apps find <name-or-bundle-id> [udid]")
+    }
+    let u = len(a) > 2 ? a[2] : ""
+    app_find(u, a[1])
+  } else {
+    m_die("usage: m4cr41n apps list [udid] | apps find <name> [udid]")
+  }
+}
+
+fn cmd_pair(a) {
+  if (len(a) < 1) {
+    m_die("usage: m4cr41n pair list | pair validate [udid]")
+  }
+  if (a[0] == "list") {
+    pair_list()
+  } else if (a[0] == "validate") {
+    let u = len(a) > 1 ? a[1] : ""
+    pair_validate(u)
+  } else {
+    m_die("usage: m4cr41n pair list | pair validate [udid]")
+  }
+}
+
+fn cmd_backup(a) {
+  if (len(a) < 1 || a[0] != "info") {
+    m_die("usage: m4cr41n backup info [udid]")
+  }
+  let u = len(a) > 1 ? a[1] : ""
+  backup_info(u)
+}
+
 fn main() {
   let a = args()
   if (len(a) == 0) {
@@ -207,8 +258,24 @@ fn main() {
       m_die("usage: m4cr41n jailbreak check|run [udid]")
     }
   }
+  else if (cmd == "apps") { cmd_apps(rest) }
+  else if (cmd == "shot") {
+    let u = len(rest) > 0 ? rest[0] : ""
+    let f = len(rest) > 1 ? rest[1] : ""
+    device_screenshot(u, f)
+  }
+  else if (cmd == "restart") {
+    let u = len(rest) > 0 ? rest[0] : ""
+    device_restart(u)
+  }
+  else if (cmd == "pair") { cmd_pair(rest) }
+  else if (cmd == "backup") { cmd_backup(rest) }
   else {
     m_err("unknown command: " + cmd)
+    let s = suggest_command(cmd)
+    if (s != null) {
+      m_info("did you mean 'm4cr41n " + s + "'?")
+    }
     usage()
     exit(2)
   }

@@ -165,6 +165,67 @@ fn m_table(rows) {
   }
 }
 
+// ---- command suggestions ------------------------------------------------
+// str_dist(a, b): Levenshtein edit distance between two strings. Pure.
+fn str_dist(a, b) {
+  let m = len(a)
+  let n = len(b)
+  if (m == 0) {
+    return n
+  }
+  if (n == 0) {
+    return m
+  }
+  let prev = []
+  let j = 0
+  while (j <= n) {
+    push(prev, j)
+    j = j + 1
+  }
+  let i = 1
+  while (i <= m) {
+    let cur = [i]
+    j = 1
+    while (j <= n) {
+      let cost = 1
+      if (a[i-1] == b[j-1]) {
+        cost = 0
+      }
+      let best = prev[j] + 1
+      if (cur[j-1] + 1 < best) {
+        best = cur[j-1] + 1
+      }
+      if (prev[j-1] + cost < best) {
+        best = prev[j-1] + cost
+      }
+      push(cur, best)
+      j = j + 1
+    }
+    prev = cur
+    i = i + 1
+  }
+  return prev[n]
+}
+
+let M_COMMANDS = ["doctor", "devices", "info", "battery", "recovery", "dfu",
+  "nvram", "secaudit", "firmware", "jailbreak", "apps", "shot", "restart",
+  "pair", "backup", "version", "help"]
+
+// suggest_command(cmd): "did you mean?" for mistyped commands.
+// Returns the closest command name within edit distance 2, else null.
+fn suggest_command(cmd) {
+  let best = null
+  let bestd = 3
+  for (c in M_COMMANDS) {
+    let d = str_dist(cmd, c)
+    if (d < bestd) {
+      bestd = d
+      best = c
+    }
+  }
+  return best
+}
+
 // ---- dependency metadata -------------------------------------------------
 // tool_hints: install guidance per tool, per OS family.
 let TOOL_HINTS = {
@@ -203,6 +264,16 @@ let TOOL_HINTS = {
     "linux": "sudo apt install libimobiledevice-utils",
     "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
   },
+  "ideviceinstaller": {
+    "darwin": "brew install libimobiledevice",
+    "linux": "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
+  "idevicepair": {
+    "darwin": "brew install libimobiledevice",
+    "linux": "sudo apt install libimobiledevice-utils",
+    "windows": "install a libimobiledevice Windows build (see docs/WINDOWS.md)"
+  },
   "checkra1n": {
     "darwin": "download from checkra.in (macOS build)",
     "linux":  "download from checkra.in (Linux build)",
@@ -212,6 +283,11 @@ let TOOL_HINTS = {
     "darwin": "see palera.in (macOS build)",
     "linux":  "see palera.in (Linux build)",
     "windows": "use palen1x USB boot image"
+  },
+  "Dopamine": {
+    "darwin": "Dopamine is installed on-device via TrollStore (see ellekit.space)",
+    "linux":  "Dopamine is installed on-device via TrollStore (see ellekit.space)",
+    "windows": "Dopamine is installed on-device via TrollStore (see ellekit.space)"
   },
   "tsschecker": {
     "darwin": "brew install tsschecker  (or build from github.com/tihmstar/tsschecker)",

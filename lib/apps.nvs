@@ -1,0 +1,112 @@
+// M4CR41N apps module — installed-app inventory via ideviceinstaller.
+// Reads the user-app list from a connected device: bundle id, display
+// name, version. Read-only; installs nothing.
+
+// parse_app_list(text): parse `ideviceinstaller -l` output into
+// [{id, name, version}, ...]. Lines look like:
+//   com.apple.mobilesafari - Safari (604.1)
+//   com.example.game - Cool Game
+// Tolerant: lines without " - " keep the whole line as the id.
+fn parse_app_list(text) {
+  let apps = []
+  for (line in split(text, "\n")) {
+    let t = trim(line)
+    if (t == "") {
+      continue
+    }
+    let id = t
+    let name = ""
+    let ver = ""
+    let i = index_of(t, " - ")
+    if (i > 0) {
+      id = trim(t[0:i])
+      let rest = trim(t[i+3:len(t)])
+      // trailing "(version)" on the display name
+      if (ends_with(rest, ")")) {
+        let j = index_of(rest, "(")
+        if (j > 0) {
+          ver = trim(rest[j+1:len(rest)-1])
+          rest = trim(rest[0:j])
+        }
+      }
+      name = rest
+    }
+    push(apps, {"id": id, "name": name, "version": ver})
+  }
+  return apps
+}
+
+// apps_list(udid): print the installed-app table for a device.
+fn apps_list(udid) {
+  if (!require_tool("ideviceinstaller")) {
+    return false
+  }
+  let cmd = "ideviceinstaller -l"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  let out = sh(cmd)
+  if (out == "") {
+    m_warn("no app list returned (device locked, or no user apps).")
+    return false
+  }
+  let apps = parse_app_list(out)
+  m_info(str(len(apps)) + " installed app(s):")
+  let rows = []
+  for (a in apps) {
+    let label = a["id"]
+    if (a["name"] != "") {
+      label = label + "  (" + a["name"]
+      if (a["version"] != "") {
+        label = label + " " + a["version"]
+      }
+      label = label + ")"
+    }
+    push(rows, [a["id"], label == a["id"] ? "" : label])
+  }
+  m_table(rows)
+  return true
+}
+
+// app_find(udid, needle): case-insensitive search over the app list.
+fn app_find(udid, needle) {
+  if (!require_tool("ideviceinstaller")) {
+    return false
+  }
+  let n = lower(trim(needle))
+  if (n == "") {
+    m_die("usage: m4cr41n apps find <name-or-bundle-id> [udid]")
+  }
+  let cmd = "ideviceinstaller -l"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  let out = sh(cmd)
+  if (out == "") {
+    m_warn("no app list returned (device locked, or no user apps).")
+    return false
+  }
+  let hits = []
+  for (a in parse_app_list(out)) {
+    if (contains(lower(a["id"]), n) || contains(lower(a["name"]), n)) {
+      push(hits, a)
+    }
+  }
+  if (len(hits) == 0) {
+    m_warn("no apps matching '" + needle + "'.")
+    return false
+  }
+  m_info(str(len(hits)) + " match(es):")
+  for (a in hits) {
+    print "  " + a["id"] + "  (" + a["name"] + " " + a["version"] + ")"
+  }
+  return true
+}

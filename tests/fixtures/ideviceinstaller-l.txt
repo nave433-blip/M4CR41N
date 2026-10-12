@@ -1,0 +1,4 @@
+com.apple.mobilesafari - Safari (604.1)
+com.apple.MobileSMS - Messages
+com.example.coolgame - Cool Game (2.3.1)
+com.example.notes - Notes (1.0)

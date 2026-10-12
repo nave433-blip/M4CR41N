@@ -1,0 +1,62 @@
+// M4CR41N backup module — backup/encryption status via idevicebackup2.
+// Read-only inspection: queries the device's backup state without
+// creating or restoring any backup.
+
+// backup_info(udid): show backup status (incl. encryption) for a device.
+fn backup_info(udid) {
+  if (!require_tool("idevicebackup2")) {
+    return false
+  }
+  let cmd = "idevicebackup2"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  let out = sh(cmd + " info")
+  if (out == "") {
+    m_warn("no backup info returned (device locked or unreachable).")
+    return false
+  }
+  print "== backup status =="
+  // Table the "Key: value" lines; show anything else raw so no device
+  // detail is ever silently dropped.
+  let h = parse_kv(out)
+  let rows = []
+  for (k in keys(h)) {
+    push(rows, [k, h[k]])
+  }
+  if (len(rows) > 0) {
+    m_table(rows)
+  }
+  let shown = []
+  for (line in split(out, "\n")) {
+    let t = trim(line)
+    if (t == "") {
+      continue
+    }
+    if (index_of(t, ":") <= 0) {
+      push(shown, t)
+    }
+  }
+  for (s in shown) {
+    print "  " + s
+  }
+  // surface the encryption answer explicitly — it is the question
+  // most operators are actually asking.
+  let enc = h["BackupPasswordEncrypted"]
+  if (enc == null) {
+    enc = h["WillEncrypt"]
+  }
+  if (enc != null) {
+    let on = lower(trim(enc)) == "true" || trim(enc) == "1"
+    if (on) {
+      m_ok("backups are encrypted.")
+    } else {
+      m_warn("backups are NOT encrypted — enable encryption in Finder/iTunes.")
+    }
+  }
+  return true
+}

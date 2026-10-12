@@ -229,3 +229,108 @@ fn battery_health(udid) {
   }
   return true
 }
+
+// device_restart(udid): reboot the device via idevicediagnostics.
+// Reboots the operator's own device — normal device management.
+fn device_restart(udid) {
+  if (!require_tool("idevicediagnostics")) {
+    return false
+  }
+  let cmd = "idevicediagnostics"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  m_warn("rebooting device now...")
+  let r = sh_ok(cmd + " restart")
+  if (r[1]) {
+    m_ok("reboot command sent.")
+  } else {
+    m_err("failed: " + r[0])
+  }
+  return r[1]
+}
+
+// pair_list(): show hosts this machine is paired with (idevicepair list).
+fn pair_list() {
+  if (!require_tool("idevicepair")) {
+    return false
+  }
+  let out = sh("idevicepair list")
+  if (out == "") {
+    m_info("no paired devices recorded on this host.")
+    return true
+  }
+  print "== paired devices =="
+  for (line in split(out, "\n")) {
+    let t = trim(line)
+    if (t != "") {
+      print "  " + t
+    }
+  }
+  return true
+}
+
+// pair_validate(udid): check the pairing record for a device.
+fn pair_validate(udid) {
+  if (!require_tool("idevicepair")) {
+    return false
+  }
+  let cmd = "idevicepair"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  let r = sh_ok(cmd + " validate")
+  if (r[1]) {
+    m_ok("pairing record valid.")
+  } else {
+    m_warn("pairing invalid or missing: " + r[0])
+    m_info("re-pair with: idevicepair pair   (then tap Trust on the device)")
+  }
+  return r[1]
+}
+
+// device_screenshot(udid, file): capture the device screen via
+// idevicescreenshot. Default output: m4cr41n-shot-<udid8>.tiff
+// (idevicescreenshot writes TIFF unless the name ends in .png).
+fn device_screenshot(udid, file) {
+  if (!require_tool("idevicescreenshot")) {
+    return false
+  }
+  let out_file = file
+  if (out_file == null || trim(out_file) == "") {
+    let short = udid
+    if (short == null) {
+      short = ""
+    }
+    if (len(short) > 8) {
+      short = short[0:8]
+    }
+    if (short == "") {
+      short = "device"
+    }
+    out_file = "m4cr41n-shot-" + short + ".tiff"
+  }
+  let cmd = "idevicescreenshot"
+  if (udid != null && udid != "") {
+    if (!is_udid(udid)) {
+      m_err("not a valid UDID: " + udid)
+      return false
+    }
+    cmd = cmd + " -u " + udid
+  }
+  let r = sh_ok(cmd + " " + shell_quote(out_file))
+  if (r[1]) {
+    m_ok("screenshot saved to " + out_file)
+  } else {
+    m_err("failed: " + r[0])
+  }
+  return r[1]
+}

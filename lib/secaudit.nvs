@@ -51,8 +51,7 @@ fn sa_firewall() {
   return ["Firewall", "disabled", false]
 }
 
-fn sa_sip_extra() {
-  // Report notable boot-args that weaken security posture.
+fn sa_sip_extra() {  // Report notable boot-args that weaken security posture.
   let out = sh("nvram boot-args 2>/dev/null")
   if (out == "") {
     return ["boot-args", "not set", true]
@@ -66,6 +65,31 @@ fn sa_sip_extra() {
   return ["boot-args", trim(out), true]
 }
 
+fn sa_stealth() {
+  // Firewall stealth mode: drop unsolicited inbound traffic.
+  let fw = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+  let out = sh(fw + " --getstealthmode 2>/dev/null")
+  if (out == "") {
+    return ["Stealth mode", "could not query", false]
+  }
+  if (contains(out, "enabled")) {
+    return ["Stealth mode", "enabled", true]
+  }
+  return ["Stealth mode", "DISABLED — " + trim(out), false]
+}
+
+fn sa_autoupdate() {
+  // macOS automatic update checking.
+  let out = sh("defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null")
+  if (trim(out) == "1") {
+    return ["Automatic updates", "on", true]
+  }
+  if (out == "") {
+    return ["Automatic updates", "could not query", false]
+  }
+  return ["Automatic updates", "OFF", false]
+}
+
 fn secaudit_run() {
   if (!M_IS_MAC) {
     m_warn("security audit targets macOS (this host: " + m_os_label() + ").")
@@ -74,7 +98,8 @@ fn secaudit_run() {
   }
   print ""
   print "== M4CR41N macOS security posture audit =="
-  let checks = [sa_csrutil(), sa_filevault(), sa_gatekeeper(), sa_firewall(), sa_sip_extra()]
+  let checks = [sa_csrutil(), sa_filevault(), sa_gatekeeper(), sa_firewall(),
+              sa_stealth(), sa_autoupdate(), sa_sip_extra()]
   let pass = 0
   for (c in checks) {
     let mark = c[2] ? "[PASS]" : "[FAIL]"

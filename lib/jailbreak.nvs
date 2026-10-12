@@ -42,13 +42,7 @@ fn jb_check(udid) {
   let pt = info["ProductType"]
   let ver = info["ProductVersion"]
   print "device: " + str(info["DeviceName"]) + " (" + str(pt) + ", iOS " + str(ver) + ")"
-  if (jb_vulnerable_product(pt)) {
-    m_ok(str(pt) + " has a checkm8-vulnerable SoC (A5-A11 bootrom).")
-    m_info("checkra1n supports iOS 12-14 on A5-A11; palera1n supports iOS 15-16 on A8-A11.")
-    return true
-  }
-  m_warn(str(pt) + " is NOT checkm8-vulnerable (A12+ or unknown). No bootrom jailbreak exists.")
-  return false
+  return jb_advise(pt, ver)
 }
 
 fn jb_run(udid) {
@@ -71,4 +65,111 @@ fn jb_run(udid) {
   m_info("checkra1n: " + tool_hint("checkra1n"))
   m_info("palera1n: " + tool_hint("palera1n"))
   return false
+}
+
+// JB tool guidance database — which jailbreak tool fits a device.
+// Guidance data only: M4CR41N ships no exploit code and launches only
+// tools the user installed themselves. Version bounds are the tools'
+// documented support windows (check vendor docs for updates).
+
+let JB_TOOLS = [
+  {"tool": "checkra1n", "soc": "A5-A11", "min": "12.0",    "max": "14.8.1",
+   "note": "bootrom (checkm8), semi-tethered; needs DFU mode"},
+  {"tool": "palera1n",  "soc": "A8-A11", "min": "15.0",    "max": "16.7.10",
+   "note": "bootrom (checkm8), semi-tethered; iOS 17.0 beta partial"},
+  {"tool": "Dopamine",  "soc": "A12+",   "min": "15.0",    "max": "16.6.1",
+   "note": "semi-untethered, installed via TrollStore-capable build"}
+]
+
+// ver_parts(v): "16.7.16" -> [16, 7, 16]. Pure.
+fn ver_parts(v) {
+  let parts = []
+  for (p in split(str(v), ".")) {
+    let n = 0
+    let ok = true
+    let i = 0
+    let s = trim(p)
+    while (i < len(s)) {
+      let c = s[i]
+      if (c < "0" || c > "9") {
+        ok = false
+      }
+      i = i + 1
+    }
+    if (ok && s != "") {
+      n = int(s)
+    }
+    push(parts, n)
+  }
+  return parts
+}
+
+// ver_in_range(ver, minv, maxv): dotted-version comparison. Pure.
+fn ver_in_range(ver, minv, maxv) {
+  let v = ver_parts(ver)
+  let lo = ver_parts(minv)
+  let hi = ver_parts(maxv)
+  let n = len(v)
+  if (len(lo) > n) { n = len(lo) }
+  if (len(hi) > n) { n = len(hi) }
+  let i = 0
+  while (i < n) {
+    let a = i < len(v) ? v[i] : 0
+    let b = i < len(lo) ? lo[i] : 0
+    if (a < b) { return false }
+    if (a > b) { break }
+    i = i + 1
+  }
+  i = 0
+  while (i < n) {
+    let a = i < len(v) ? v[i] : 0
+    let c = i < len(hi) ? hi[i] : 0
+    if (a > c) { return false }
+    if (a < c) { break }
+    i = i + 1
+  }
+  return true
+}
+
+// jb_tools_for(product_type, ios_version): recommended tools for a
+// device, combining the checkm8 table with the version windows.
+// Returns [{tool, soc, note}, ...]. Pure, testable.
+fn jb_tools_for(product_type, ios_version) {
+  let out = []
+  let c8 = jb_vulnerable_product(product_type)
+  for (t in JB_TOOLS) {
+    let fits_soc = (t["soc"] == "A5-A11" && c8) ||
+                   (t["soc"] == "A8-A11" && c8) ||
+                   (t["soc"] == "A12+" && !c8)
+    if (!fits_soc) {
+      continue
+    }
+    if (ios_version != null && trim(str(ios_version)) != "") {
+      if (!ver_in_range(ios_version, t["min"], t["max"])) {
+        continue
+      }
+    }
+    push(out, t)
+  }
+  return out
+}
+
+// jb_advise(product_type, ios_version): print tool recommendations.
+fn jb_advise(product_type, ios_version) {
+  let tools = jb_tools_for(product_type, ios_version)
+  if (len(tools) == 0) {
+    m_warn("no known jailbreak tool covers " + str(product_type) +
+           " on iOS " + str(ios_version) + ".")
+    m_info("check vendor docs — support windows change with new releases.")
+    return false
+  }
+  print "recommended tool(s) for " + str(product_type) +
+        " (iOS " + str(ios_version) + "):"
+  for (t in tools) {
+    print "  [+] " + t["tool"] + "  [" + t["soc"] + ", iOS " +
+          t["min"] + "-" + t["max"] + "]"
+    print "      " + t["note"]
+    print "      install: " + tool_hint(t["tool"])
+  }
+  return true
 }

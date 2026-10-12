@@ -1,0 +1,83 @@
+// M4CR41N tests — Wave 2 features (pure parts).
+import "../lib/core.nvs"
+import "../lib/device.nvs"
+import "../lib/modes.nvs"
+import "../lib/nvram.nvs"
+import "../lib/apps.nvs"
+import "../lib/backup.nvs"
+import "../lib/jailbreak.nvs"
+
+fn t_parse_app_list() {
+  let txt = read_file("../tests/fixtures/ideviceinstaller-l.txt")
+  let apps = parse_app_list(txt)
+  assert(len(apps) == 4, "4 apps parsed, got " + str(len(apps)))
+  assert(apps[0]["id"] == "com.apple.mobilesafari", "first id")
+  assert(apps[0]["name"] == "Safari", "first name")
+  assert(apps[0]["version"] == "604.1", "first version")
+  assert(apps[1]["id"] == "com.apple.MobileSMS", "second id")
+  assert(apps[1]["name"] == "Messages", "second name")
+  assert(apps[1]["version"] == "", "no version -> empty")
+  assert(apps[2]["id"] == "com.example.coolgame", "third id")
+  assert(apps[2]["version"] == "2.3.1", "third version")
+  // bare-id lines keep the whole line
+  let bare = parse_app_list("com.foo.bar\n")
+  assert(len(bare) == 1 && bare[0]["id"] == "com.foo.bar", "bare id line")
+  assert(bare[0]["name"] == "", "bare id -> empty name")
+  assert(len(parse_app_list("")) == 0, "empty -> empty")
+  assert(len(parse_app_list("  \n\n")) == 0, "blank lines skipped")
+}
+
+fn t_ver_in_range() {
+  assert(ver_in_range("16.7.16", "15.0", "16.7.10") == false, "16.7.16 > 16.7.10")
+  assert(ver_in_range("16.7.10", "15.0", "16.7.10") == true, "upper bound inclusive")
+  assert(ver_in_range("15.0", "15.0", "16.7.10") == true, "lower bound inclusive")
+  assert(ver_in_range("14.8.1", "12.0", "14.8.1") == true, "checkra1n top")
+  assert(ver_in_range("14.9", "12.0", "14.8.1") == false, "above checkra1n")
+  assert(ver_in_range("11.4.1", "12.0", "14.8.1") == false, "below checkra1n")
+  assert(ver_in_range("16.6.1", "15.0", "16.6.1") == true, "dopamine top")
+  assert(ver_in_range("17.0", "15.0", "16.6.1") == false, "iOS 17 out")
+  assert(ver_in_range("16", "15.0", "16.6.1") == true, "short version form")
+}
+
+fn t_jb_tools_for() {
+  // checkm8 device on iOS 14 -> checkra1n only
+  let t1 = jb_tools_for("iPhone10,1", "14.8.1")
+  assert(len(t1) == 1 && t1[0]["tool"] == "checkra1n", "iPhone 8 iOS 14 -> checkra1n")
+  // checkm8 device on iOS 16 -> palera1n only
+  let t2 = jb_tools_for("iPhone10,1", "16.7.10")
+  assert(len(t2) == 1 && t2[0]["tool"] == "palera1n", "iPhone 8 iOS 16 -> palera1n")
+  // A12+ device on iOS 16.6.1 -> Dopamine
+  let t3 = jb_tools_for("iPhone11,2", "16.6.1")
+  assert(len(t3) == 1 && t3[0]["tool"] == "Dopamine", "iPhone XS iOS 16.6.1 -> Dopamine")
+  // A12+ on iOS 17 -> nothing
+  let t4 = jb_tools_for("iPhone11,2", "17.0")
+  assert(len(t4) == 0, "iOS 17 -> no tool")
+  // no version given -> all SoC-fitting tools listed
+  let t5 = jb_tools_for("iPhone10,1", "")
+  assert(len(t5) == 2, "no version -> both checkm8 tools, got " + str(len(t5)))
+  let t6 = jb_tools_for(null, "16.6.1")
+  assert(len(t6) == 1 && t6[0]["tool"] == "Dopamine", "unknown SoC treated as A12+")
+}
+
+fn t_suggest_command() {
+  assert(suggest_command("docter") == "doctor", "docter -> doctor")
+  assert(suggest_command("devcies") == "devices", "devcies -> devices")
+  assert(suggest_command("nvraam") == "nvram", "nvraam -> nvram")
+  assert(suggest_command("firmwar") == "firmware", "firmwar -> firmware")
+  assert(suggest_command("jailbrake") == "jailbreak", "jailbrake -> jailbreak")
+  assert(suggest_command("zzzzzz") == null, "gibberish -> null")
+}
+
+fn t_new_tool_hints() {
+  assert(tool_hint("ideviceinstaller") != "", "installer hint")
+  assert(tool_hint("idevicepair") != "", "pair hint")
+  assert(tool_hint("idevicescreenshot") != "", "screenshot hint")
+  assert(tool_hint("Dopamine") != "", "dopamine hint")
+}
+
+t_parse_app_list()
+t_ver_in_range()
+t_jb_tools_for()
+t_suggest_command()
+t_new_tool_hints()
+print "test_wave2 OK"
